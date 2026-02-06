@@ -219,8 +219,9 @@ def create_scene_aggregators(
 
         all_updates.append(updated_rows)
 
-    all_updates_df = pd.concat(all_updates, ignore_index=True).set_index("token")
-    full_score_df.update(all_updates_df)
+    if len(all_updates) > 0:
+        all_updates_df = pd.concat(all_updates, ignore_index=True).set_index("token")
+        full_score_df.update(all_updates_df)
     full_score_df.reset_index(inplace=True)
     full_score_df = full_score_df.drop(columns=["ego_simulated_states"])
 

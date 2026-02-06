@@ -7,19 +7,24 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH=/opt/conda/bin:$PATH
 
 # 安装系统依赖
-RUN apt-get update && apt-get install -y 
-    git 
-    wget 
-    curl 
-    libgl1-mesa-glx 
-    libglib2.0-0 
-    build-essential 
+RUN apt-get update && apt-get install -y \
+    git \
+    wget \
+    curl \
+    unzip \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装 Miniconda
-RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh 
-    && bash miniconda.sh -b -p /opt/conda 
+RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o miniconda.sh \
+    && bash miniconda.sh -b -p /opt/conda \
     && rm miniconda.sh
+
+# 接受 Conda ToS
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main \
+    && conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 
 # 设置工作目录
 WORKDIR /workspace/navsim
@@ -28,7 +33,7 @@ WORKDIR /workspace/navsim
 COPY environment.yml requirements.txt setup.py ./
 
 # 创建 Conda 环境并安装依赖
-RUN conda env create -f environment.yml 
+RUN conda env create -f environment.yml \
     && conda clean -afy
 
 # 默认激活 navsim 环境
