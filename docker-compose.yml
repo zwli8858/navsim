@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  navsim:
+    build: .
+    image: navsim:v2
+    container_name: navsim_env
+    # 启用 GPU 支持
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # 挂载目录
+    volumes:
+      - .:/workspace/navsim
+      - ./dataset:/workspace/dataset  # 请确保你在 Windows 本地有这个文件夹并放入了数据
+      - ./exp:/workspace/exp          # 用于存放实验结果
+    # 保持容器运行
+    stdin_open: true
+    tty: true
+    environment:
+      - NUPLAN_MAPS_ROOT=/workspace/dataset/maps
+      - OPENSCENE_DATA_ROOT=/workspace/dataset
+      - NAVSIM_EXP_ROOT=/workspace/exp
