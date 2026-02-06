@@ -31,7 +31,7 @@ pip install -e .
 
 ## 3. 数据准备 (以 mini split 为例)
 
-由于脚本可能存在 Windows 换换行符（CRLF）兼容性问题，建议在容器内手动执行下载和解压。
+由于脚本可能存在 Windows 换行符（CRLF）兼容性问题，建议在容器内手动执行下载和解压。
 
 ### 3.1 下载并安装地图 (nuPlan Maps)
 ```bash
@@ -72,19 +72,19 @@ rm -rf openscene-v1.1 openscene_sensor_mini_camera_0.tgz
 这是运行评估的前置步骤，针对 `mini` 数据集大约需要 10-15 分钟（取决于 CPU 核心数）。
 ```bash
 cd /workspace/navsim
-python navsim/planning/script/run_metric_caching.py 
-    train_test_split=mini 
-    metric_cache_path=/workspace/exp/metric_cache 
+python navsim/planning/script/run_metric_caching.py \
+    train_test_split=mini \
+    metric_cache_path=/workspace/exp/metric_cache \
     worker=ray_distributed_no_torch
 ```
 
 ### 4.2 运行评估脚本 (以 CV Agent 为例)
 我们使用 `one_stage` 脚本对 `mini` 数据集进行快速验证。
 ```bash
-python navsim/planning/script/run_pdm_score_one_stage.py 
-    train_test_split=mini 
-    experiment_name=cv_agent 
-    metric_cache_path=/workspace/exp/metric_cache 
+python navsim/planning/script/run_pdm_score_one_stage.py \
+    train_test_split=mini \
+    experiment_name=cv_agent \
+    metric_cache_path=/workspace/exp/metric_cache \
     worker=ray_distributed_no_torch
 ```
 
@@ -93,10 +93,52 @@ python navsim/planning/script/run_pdm_score_one_stage.py
 - `Final average score of valid results: 0.825...`
 - 结果文件保存在 `/workspace/exp/cv_agent/日期/文件名.csv`
 
-## 5. 常见问题说明
+## 5. 资源优化 (解决 CPU/内存占用过高)
 
-1.  **脚本换行符错误**：如果在容器内运行 `.sh` 脚本报错 `: command not found`，请执行 `tr -d '' < script.sh > script_fixed.sh` 进行修复。
-2.  **内存不足 (OOM)**：Ray 引擎在并行处理时会占用大量内存。如果发生崩溃，请尝试降低并行数或增加 Docker 的资源配额。
+NAVSIM 默认使用 **Ray** 引擎并行处理任务，会默认占用所有可用的 CPU 逻辑核心。这会导致内存消耗剧增（每个进程都加载数据）并使 CPU 满载。
+
+### 5.1 限制并行数 (推荐)
+如果你发现系统卡顿或 OOM (Out of Memory)，请在命令中添加 `max_number_of_workers` 参数限制并行进程数：
+```bash
+# 例如限制为 8 个并行进程
+python navsim/planning/script/run_pdm_score_one_stage.py \
+    train_test_split=mini \
+    experiment_name=cv_agent \
+    metric_cache_path=/workspace/exp/metric_cache \
+    worker=ray_distributed_no_torch \
+    max_number_of_workers=8
+```
+
+### 5.2 关于 GPU
+*   **CV Agent**: 该模型仅使用基础物理计算，不支持 GPU。
+*   **深度学习模型 (如 Transfuser)**: 使用 GPU 可以加速推理，但场景仿真逻辑依然依赖 CPU。
+
+## 6. 进入容器查看结果
+
+### 6.1 进入容器内部查看
+如果你希望在容器终端中直接操作：
+```powershell
+# 在 Windows 终端运行，进入容器终端
+docker exec -it navsim_env /bin/bash
+
+# 进入结果目录 (在容器内)
+cd /workspace/exp/cv_agent
+
+# 查看目录结构和生成的 CSV 文件
+ls -R
+
+# 查看具体的评分结果内容
+cat <日期目录>/<文件名>.csv
+```
+
+### 6.2 在宿主机（Windows）查看
+由于配置了文件挂载，你也可以直接在 Windows 下通过常规工具（Excel, VS Code, Notepad++）查看：
+- **路径：** `C:\Users\zwli8\workspace\navsim\exp\cv_agent\`
+
+## 7. 常见问题说明
+
+1.  **脚本换行符错误**：如果在容器内运行 `.sh` 脚本报错 `\r: command not found`，请执行 `tr -d '\r' < script.sh > script_fixed.sh` 进行修复。
+2.  **内存不足 (OOM)**：如果 Ray 引擎崩溃，通常是因为并行任务过多。请参考第 5 节限制 `max_number_of_workers`。
 3.  **路径环境变量**：容器内已预设以下环境变量，无需手动修改：
     - `NUPLAN_MAPS_ROOT`: `/workspace/dataset/maps`
     - `OPENSCENE_DATA_ROOT`: `/workspace/dataset`
