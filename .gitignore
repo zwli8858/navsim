@@ -27,3 +27,5 @@ dataset
 
 # running scripts
 scripts_dev/*
+
+.idea/
